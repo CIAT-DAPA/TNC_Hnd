@@ -43,21 +43,65 @@ all$Origen = ifelse(all$Origen=="santa_rosa_c", "CHIRPS", "Observado")
 all =melt(all, id.vars = c("date", "Origen"))
 cor(xx[,3:4],sitios[1:2],use = "pairwise.complete.obs")
 
+sqrt(mean((xx[,4]-sitios[,1])^2,na.rm=T))
+sqrt(mean((xx[,3]-sitios[,2])^2,na.rm=T))
+
 library(ggplot2)
 
-ggplot(all, aes(date, value, color = Origen)) + geom_line() +facet_grid(~variable)+theme_bw()+
+x11()
+ggplot(all, aes(date, value, color = Origen)) + geom_line() +facet_wrap(~variable,ncol=1)+theme_bw()+
   ylab("Precipitación (mm/mes)") + xlab(" ") + scale_color_manual(breaks = c("CHIRPS", "Observado"),values=c("black", "red"))
-
-
-ggplot(all, aes(x= Origen, y=value, fill = Origen)) + geom_boxplot() +facet_grid(~variable)+theme_bw()+
-  ylab("Precipitación (mm/mes)") + xlab(" ")
+ggsave("lineplot_chirps.tiff")
 
 x11()
-par(mfrow=c(2,1))
-plot(sitios[,3],xx[,3],type="l",lwd=1.6, main = "Estación Santa Rosa de Copán", xlab = " ", ylab="Precipitación (mm/mes)")
-lines(sitios[,3],sitios[,2],col="red",lty = 2,lwd=1.5)
+ggplot(all, aes(x= Origen, y=value, fill = Origen)) + geom_boxplot() +facet_grid(~variable)+theme_bw()+
+  ylab("Precipitación (mm/mes)") + xlab(" ")
+ggsave("boxplot_chirps.tiff")
 
-plot(sitios[,3],xx[,4],type="l",lwd=1.6, main = "Estación Choluteca", xlab = " ", ylab="Precipitación (mm/mes)")
-lines(sitios[,3],sitios[,1],col="red",lty = 2,lwd=1.5)
+# 
+# x11()
+# par(mfrow=c(2,1))
+# plot(sitios[,3],xx[,3],type="l",lwd=1.6, main = "Estación Santa Rosa de Copán", xlab = " ", ylab="Precipitación (mm/mes)")
+# lines(sitios[,3],sitios[,2],col="red",lty = 2,lwd=1.5)
+# 
+# plot(sitios[,3],xx[,4],type="l",lwd=1.6, main = "Estación Choluteca", xlab = " ", ylab="Precipitación (mm/mes)")
+# lines(sitios[,3],sitios[,1],col="red",lty = 2,lwd=1.5)
+# 
+# boxplot()
 
-boxplot()
+
+
+# Climatologias -----------------------------------------------------------
+library(reshape2)
+
+prec_cum = aggregate(monthly_precip[,-2:-1],list(monthly_precip$Mes),mean,na.rm=T)
+
+clim = melt(prec_cum,id.vars = "Group.1")
+
+ggplot(clim, aes(Group.1,value,fill=variable)) +geom_bar(stat="identity",position=position_dodge())
+ggplot(clim, aes(Group.1,value)) +geom_bar(stat="identity") +facet_grid(~variable)
+
+# Analisis de variabilidad interanual -------------------------------------
+sum2=function(a,na.rm=any(!is.na(a))){
+  return(sum(a,na.rm=any(!is.na(a))))
+}
+
+trim_cum = function(monthly_precip, vec){
+  pos = which(monthly_precip$Mes %in% vec)
+  trim = rep(NA,nrow(monthly_precip))
+ trim[pos]=paste0("Trim_",vec[1])
+ cum = aggregate(monthly_precip[,3:4],list(trim,monthly_precip$Año),sum2)
+
+ return(cum)
+}
+
+def = trim_cum(monthly_precip , vec=c(12,1,2))
+def[1,3:4] =NA
+amj = trim_cum(monthly_precip , vec=c(4,5,6))
+aso = trim_cum(monthly_precip , vec=c(8,9,10))
+mam = trim_cum(monthly_precip , vec=c(3,4,5))
+
+all_trim = rbind(def,amj,aso,mam)
+
+ggplot(all_trim, aes(Group.2,santa_rosa))+geom_line()+facet_wrap(~Group.1,2)
+ggplot(all_trim, aes(Group.2,choluteca))+geom_line()+facet_wrap(~Group.1,2)
